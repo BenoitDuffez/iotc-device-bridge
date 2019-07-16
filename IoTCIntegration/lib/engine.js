@@ -43,6 +43,21 @@ module.exports = async function (context, loraMessage) {
     const client = Device.Client.fromConnectionString(await getDeviceConnectionString(context, loraMessage.endDevice), DeviceTransport.Http);
 
     try {
+        const payload = Decoder(hexToBytes(loraMessage.payload))
+        context.log("payload decoded: ", payload);
+
+        var loc = null;
+        if (payload.hasOwnProperty('gps_quality')
+            && (payload.latitude_dmm < 90 && payload.latitude_dmm > -90)
+            && (payload.longitude_dmm < 180 && payload.longitude_dmm > -180)
+            && (payload.latitude_dmm != 0 || payload.longitude_dmm != 0)) {
+            loc = {
+                'lat': payload.latitude,
+                'lon': payload.longitude
+            };
+            context.log("Location: ", loc);
+        }
+
         const iotMessage = {
             payload: loraMessage.payload,
             fCntUp: loraMessage.fCntUp,
@@ -51,18 +66,20 @@ module.exports = async function (context, loraMessage) {
             confirmed: loraMessage.confirmed,
             encrypted: loraMessage.encrypted,
             adr: loraMessage.adr,
-            fPort: loraMessage.fPort
+            fPort: loraMessage.fPort,
+            location: loc
         };
         const message = new Device.Message(JSON.stringify(iotMessage));
         message.properties.add('iothub-creation-time-utc', date.toString());
-        
-        const payload = Decoder(hexToBytes(loraMessage.payload))
-        if (payload.temperature) {
+
+        if (payload.temperature && payload.temperature > -30 && payload.temperature < 60) {
             message.properties.add('temperature', payload.temperature);
         }
         if (payload.battery_level) {
             message.properties.add('battery_level', payload.battery_level);
         }
+
+        context.log("Telemetry: ", message.properties);
 
         await util.promisify(client.open.bind(client))();
         context.log('[HTTP] Sending telemetry for device', loraMessage.endDevice.devEui);
