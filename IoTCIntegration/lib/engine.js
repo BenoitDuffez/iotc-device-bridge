@@ -48,9 +48,9 @@ module.exports = async function (context, loraMessage) {
 
         var loc = null;
         if (payload.hasOwnProperty('gps_quality')
-            && (payload.latitude_dmm < 90 && payload.latitude_dmm > -90)
-            && (payload.longitude_dmm < 180 && payload.longitude_dmm > -180)
-            && (payload.latitude_dmm != 0 || payload.longitude_dmm != 0)) {
+            && (payload.latitude < 90 && payload.latitude > -90)
+            && (payload.longitude < 180 && payload.longitude > -180)
+            && (payload.latitude != 0 && payload.longitude != 0)) {
             loc = {
                 'lat': payload.latitude,
                 'lon': payload.longitude
@@ -77,6 +77,9 @@ module.exports = async function (context, loraMessage) {
         }
         if (payload.battery_level) {
             message.properties.add('battery_level', payload.battery_level);
+        }
+        if (loc != null) {
+            message.properties.add('location', loc);
         }
 
         context.log("Telemetry: ", message.properties);
